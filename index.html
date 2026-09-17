@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>BYDLENÍ — Mapa bydlení</title>
+
+    <meta
+        name="description"
+        content="Interaktivní mapa pro analýzu lokalit a bydlení."
+    >
+
+    <!-- MapLibre -->
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    >
+
+    <!-- Icons -->
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+    >
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- ========================= -->
+    <!-- HEADER -->
+    <!-- ========================= -->
+
+    <header class="topbar">
+
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fa-solid fa-location-dot"></i>
+            </div>
+
+            <span>BYDLENÍ</span>
+        </div>
+
+        <div class="search-container">
+
+            <i class="fa-solid fa-magnifying-glass"></i>
+
+            <input
+                id="searchInput"
+                type="text"
+                placeholder="Vyhledat adresu, ulici nebo lokalitu..."
+                autocomplete="off"
+            >
+
+            <div
+                id="searchResults"
+                class="search-results"
+            ></div>
+
+        </div>
+
+        <nav class="navigation">
+
+            <button class="nav-button active">
+                Bydlení
+            </button>
+
+            <button class="nav-button">
+                Profi
+            </button>
+
+        </nav>
+
+    </header>
+
+
+    <!-- ========================= -->
+    <!-- MAP -->
+    <!-- ========================= -->
+
+    <main id="map"></main>
+
+
+    <!-- ========================= -->
+    <!-- MAP CONTROLS -->
+    <!-- ========================= -->
+
+    <div class="map-controls">
+
+        <button
+            id="locateButton"
+            class="map-control"
+            title="Moje poloha"
+        >
+            <i class="fa-solid fa-crosshairs"></i>
+        </button>
+
+    </div>
+
+
+    <!-- ========================= -->
+    <!-- LAYERS -->
+    <!-- ========================= -->
+
+    <aside class="layers-panel">
+
+        <div class="panel-header">
+
+            <div>
+                <div class="eyebrow">
+                    MAPA
+                </div>
+
+                <h2>
+                    Mapové vrstvy
+                </h2>
+            </div>
+
+        </div>
+
+
+        <div class="layers-list">
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="prices"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-building"></i>
+                </span>
+
+                <span>
+                    Ceny nemovitostí
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="rent"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-house"></i>
+                </span>
+
+                <span>
+                    Nájemné
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="transport"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-bus"></i>
+                </span>
+
+                <span>
+                    MHD
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="noise"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-volume-high"></i>
+                </span>
+
+                <span>
+                    Hluk
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="greenery"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-tree"></i>
+                </span>
+
+                <span>
+                    Zeleň
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="schools"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-school"></i>
+                </span>
+
+                <span>
+                    Školy
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="safety"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-shield-halved"></i>
+                </span>
+
+                <span>
+                    Bezpečnost
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="flood"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-water"></i>
+                </span>
+
+                <span>
+                    Povodňové riziko
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="parking"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-square-parking"></i>
+                </span>
+
+                <span>
+                    Parkování
+                </span>
+
+            </label>
+
+
+            <label class="layer-item">
+
+                <input
+                    type="checkbox"
+                    data-layer="development"
+                >
+
+                <span class="layer-icon">
+                    <i class="fa-solid fa-city"></i>
+                </span>
+
+                <span>
+                    Plánovaná výstavba
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="demo-note">
+
+            <i class="fa-solid fa-circle-info"></i>
+
+            <span>
+                Některé vrstvy jsou zatím pouze připravené
+                pro budoucí datové zdroje.
+            </span>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ========================= -->
+    <!-- LOCATION PANEL -->
+    <!-- ========================= -->
+
+    <aside
+        id="locationPanel"
+        class="location-panel"
+    >
+
+        <div class="location-header">
+
+            <div>
+
+                <div class="eyebrow">
+                    LOKALITA
+                </div>
+
+                <h1 id="locationName">
+                    Dejvice
+                </h1>
+
+                <p id="locationCity">
+                    Praha
+                </p>
+
+            </div>
+
+            <button
+                id="closePanel"
+                class="close-button"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="location-content">
+
+            <!-- DEMO -->
+
+            <div class="demo-warning">
+
+                <i class="fa-solid fa-database"></i>
+
+                <div>
+
+                    <strong>DEMO DATA</strong>
+
+                    <p>
+                        Tato lokalita používá demonstrační
+                        hodnoty. Nejedná se o skutečnou
+                        statistickou analýzu.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <!-- SCORES -->
+
+            <section>
+
+                <div class="section-title">
+                    PŘEHLED
+                </div>
+
+
+                <div class="scores-grid">
+
+                    <div class="score-card">
+
+                        <div class="score-top">
+                            <i class="fa-solid fa-bus"></i>
+                            <span>Doprava</span>
+                        </div>
+
+                        <div class="score">
+                            <strong id="transportScore">9</strong>
+                            <span>/10</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="score-card">
+
+                        <div class="score-top">
+                            <i class="fa-solid fa-store"></i>
+                            <span>Služby</span>
+                        </div>
+
+                        <div class="score">
+                            <strong id="servicesScore">9</strong>
+                            <span>/10</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="score-card">
+
+                        <div class="score-top">
+                            <i class="fa-solid fa-tree"></i>
+                            <span>Zeleň</span>
+                        </div>
+
+                        <div class="score">
+                            <strong id="greeneryScore">8</strong>
+                            <span>/10</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="score-card">
+
+                        <div class="score-top">
+                            <i class="fa-solid fa-volume-low"></i>
+                            <span>Klid</span>
+                        </div>
+
+                        <div class="score">
+                            <strong id="quietnessScore">6</strong>
+                            <span>/10</span>
+                        </div>
+
+                    </div>
+
+
+                    <div class="score-card">
+
+                        <div class="score-top">
+                            <i class="fa-solid fa-square-parking"></i>
+                            <span>Parkování</span>
+                        </div>
+
+                        <div class="score">
+                            <strong id="parkingScore">5</strong>
+                            <span>/10</span>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ADVANTAGES -->
+
+            <section>
+
+                <div class="section-title">
+                    VÝHODY
+                </div>
+
+                <div id="advantages"></div>
+
+            </section>
+
+
+            <!-- RISKS -->
+
+            <section>
+
+                <div class="section-title">
+                    RIZIKA
+                </div>
+
+                <div id="risks"></div>
+
+            </section>
+
+
+            <!-- DATA -->
+
+            <section class="data-section">
+
+                <div class="section-title">
+                    DATA
+                </div>
+
+                <div class="data-row">
+
+                    <span>Zdroj</span>
+
+                    <strong>
+                        DEMO DATA
+                    </strong>
+
+                </div>
+
+                <div class="data-row">
+
+                    <span>Aktualizováno</span>
+
+                    <strong>
+                        DEMO
+                    </strong>
+
+                </div>
+
+                <div class="data-row">
+
+                    <span>Metodika</span>
+
+                    <strong>
+                        DEMO
+                    </strong>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ========================= -->
+    <!-- MOBILE LAYERS BUTTON -->
+    <!-- ========================= -->
+
+    <button
+        id="mobileLayers"
+        class="mobile-layers"
+    >
+        <i class="fa-solid fa-layer-group"></i>
+    </button>
+
+</div>
+
+
+<!-- MapLibre -->
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<!-- JavaScript -->
+<script src="script.js"></script>
+
+</body>
+</html>

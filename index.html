@@ -1,566 +1,4060 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="cs">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BYDLENÍ — mapa ČR</title>
 
-    <title>BYDLENÍ — Mapa bydlení</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    crossorigin=""
+  />
 
-    <meta
-        name="description"
-        content="Interaktivní mapa pro analýzu lokalit a bydlení."
-    >
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    <!-- MapLibre -->
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
-    >
+  <style>
+    :root{
+      --bg:#ffffff;
+      --panel:rgba(255,255,255,.94);
+      --text:#111827;
+      --muted:#667085;
+      --line:#e7eaf0;
+      --blue:#2563eb;
+      --shadow:0 12px 35px rgba(16,24,40,.14);
+      --radius:18px;
+    }
 
-    <!-- Icons -->
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    >
+    *{
+      box-sizing:border-box;
+    }
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
+    html,body,#root{
+      width:100%;
+      height:100%;
+      margin:0;
+    }
+
+    body{
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      background:#eef1f5;
+      color:var(--text);
+      overflow:hidden;
+    }
+
+    #map{
+      position:fixed;
+      inset:0;
+      z-index:1;
+      background:#e9edf2;
+    }
+
+    .leaflet-container{
+      font:inherit;
+    }
+
+    .leaflet-control-zoom{
+      border:0!important;
+      box-shadow:var(--shadow)!important;
+      overflow:hidden;
+      border-radius:12px!important;
+    }
+
+    .leaflet-control-zoom a{
+      width:38px!important;
+      height:38px!important;
+      line-height:38px!important;
+      color:#111827!important;
+      background:#fff!important;
+      border:0!important;
+    }
+
+    .leaflet-control-attribution{
+      font-size:10px;
+      background:rgba(255,255,255,.82)!important;
+      backdrop-filter:blur(8px);
+    }
+
+    .topbar{
+      position:fixed;
+      z-index:1000;
+      top:14px;
+      left:14px;
+      right:14px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      pointer-events:none;
+    }
+
+    .topbar > *{
+      pointer-events:auto;
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      height:48px;
+      padding:0 16px;
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      font-weight:800;
+      letter-spacing:.08em;
+      white-space:nowrap;
+    }
+
+    .brand-dot{
+      width:10px;
+      height:10px;
+      border-radius:50%;
+      background:linear-gradient(135deg,#2563eb,#60a5fa);
+      box-shadow:0 0 0 5px rgba(37,99,235,.10);
+    }
+
+    .search{
+      flex:1;
+      max-width:680px;
+      min-width:260px;
+      display:flex;
+      align-items:center;
+      gap:8px;
+      height:48px;
+      padding:0 8px 0 15px;
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      position:relative;
+    }
+
+    .search input{
+      flex:1;
+      min-width:0;
+      border:0;
+      outline:0;
+      background:transparent;
+      color:var(--text);
+      font-size:14px;
+    }
+
+    .search button{
+      border:0;
+      background:#111827;
+      color:#fff;
+      border-radius:10px;
+      height:34px;
+      padding:0 13px;
+      font-weight:700;
+      cursor:pointer;
+    }
+
+    .search button:hover{
+      background:#1f2937;
+    }
+
+    .region-select{
+      height:48px;
+      min-width:210px;
+      border:1px solid rgba(255,255,255,.7);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      background:var(--panel);
+      padding:0 13px;
+      outline:none;
+      color:#111827;
+      font-weight:650;
+    }
+
+    .mode{
+      margin-left:auto;
+      display:flex;
+      gap:4px;
+      height:48px;
+      padding:4px;
+      background:var(--panel);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+    }
+
+    .mode button{
+      border:0;
+      border-radius:10px;
+      padding:0 14px;
+      background:transparent;
+      color:#667085;
+      font-weight:750;
+      cursor:pointer;
+    }
+
+    .mode button.active{
+      background:#111827;
+      color:#fff;
+    }
+
+    .search-results{
+      position:absolute;
+      top:56px;
+      left:0;
+      width:min(680px,calc(100vw - 30px));
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:14px;
+      box-shadow:var(--shadow);
+      overflow:hidden;
+    }
+
+    .search-result{
+      padding:12px 14px;
+      cursor:pointer;
+      border-bottom:1px solid #f0f2f5;
+    }
+
+    .search-result:last-child{
+      border-bottom:0;
+    }
+
+    .search-result:hover{
+      background:#f7f9fc;
+    }
+
+    .search-result strong{
+      display:block;
+    }
+
+    .search-result span{
+      font-size:12px;
+      color:var(--muted);
+    }
+
+    .layers{
+      position:fixed;
+      z-index:1000;
+      left:16px;
+      bottom:16px;
+      width:310px;
+      max-height:calc(100vh - 100px);
+      overflow:auto;
+      padding:14px;
+      background:var(--panel);
+      border:1px solid rgba(255,255,255,.8);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+    }
+
+    .panel-title{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      margin-bottom:10px;
+    }
+
+    .panel-title strong{
+      font-size:14px;
+    }
+
+    .eyebrow{
+      font-size:10px;
+      font-weight:800;
+      letter-spacing:.12em;
+      color:#667085;
+      text-transform:uppercase;
+    }
+
+    .layer-row{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:43px;
+      padding:7px 8px;
+      border-radius:12px;
+      cursor:pointer;
+    }
+
+    .layer-row:hover{
+      background:#f5f7fa;
+    }
+
+    .layer-row.active{
+      background:#eef4ff;
+    }
+
+    .layer-row input{
+      width:17px;
+      height:17px;
+      accent-color:#2563eb;
+    }
+
+    .layer-icon{
+      width:28px;
+      height:28px;
+      border-radius:9px;
+      display:grid;
+      place-items:center;
+      background:#f0f2f5;
+      font-size:14px;
+      flex:0 0 auto;
+    }
+
+    .layer-text{
+      min-width:0;
+      flex:1;
+    }
+
+    .layer-name{
+      font-size:13px;
+      font-weight:750;
+    }
+
+    .layer-sub{
+      font-size:10px;
+      color:var(--muted);
+      margin-top:2px;
+    }
+
+    .status-pill{
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:.05em;
+      padding:4px 6px;
+      border-radius:7px;
+      background:#eef2f7;
+      color:#667085;
+    }
+
+    .status-pill.real{
+      background:#e8f8ef;
+      color:#087443;
+    }
+
+    .status-pill.demo{
+      background:#fff4dc;
+      color:#9a5a00;
+    }
+
+    .legend{
+      margin-top:12px;
+      padding-top:12px;
+      border-top:1px solid var(--line);
+    }
+
+    .legend-bar{
+      height:10px;
+      border-radius:99px;
+      background:linear-gradient(
+        90deg,
+        #15803d,
+        #facc15,
+        #dc2626
+      );
+      margin:7px 0 5px;
+    }
+
+    .legend-labels{
+      display:flex;
+      justify-content:space-between;
+      font-size:9px;
+      color:var(--muted);
+    }
+
+    .fixed-open{
+      position:fixed;
+      z-index:1100;
+      left:50%;
+      bottom:18px;
+      transform:translateX(-50%);
+      border:0;
+      border-radius:999px;
+      padding:12px 18px;
+      background:#111827;
+      color:#fff;
+      font-weight:800;
+      box-shadow:0 12px 35px rgba(16,24,40,.24);
+      cursor:pointer;
+    }
+
+    .fixed-open:hover{
+      background:#1f2937;
+    }
+
+    .detail{
+      position:fixed;
+      z-index:1050;
+      top:76px;
+      right:16px;
+      width:390px;
+      max-height:calc(100vh - 100px);
+      overflow:auto;
+      padding:18px;
+      background:rgba(255,255,255,.97);
+      border:1px solid rgba(255,255,255,.9);
+      border-radius:20px;
+      box-shadow:var(--shadow);
+    }
+
+    .detail-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+
+    .detail-head h2{
+      margin:4px 0 0;
+      font-size:25px;
+      line-height:1.1;
+    }
+
+    .close{
+      border:0;
+      width:34px;
+      height:34px;
+      border-radius:10px;
+      background:#f1f3f6;
+      color:#111827;
+      cursor:pointer;
+      font-size:18px;
+    }
+
+    .hero-metric{
+      margin-top:16px;
+      padding:15px;
+      border-radius:15px;
+      background:linear-gradient(
+        135deg,
+        #f7f9fc,
+        #edf3ff
+      );
+      border:1px solid #e6ebf3;
+    }
+
+    .hero-metric span{
+      font-size:11px;
+      color:#667085;
+    }
+
+    .hero-metric strong{
+      display:block;
+      margin-top:4px;
+      font-size:28px;
+      letter-spacing:-.03em;
+    }
+
+    .hero-metric small{
+      color:#667085;
+    }
+
+    .data-warning{
+      margin-top:12px;
+      padding:10px 12px;
+      border-radius:12px;
+      background:#fff8e8;
+      color:#795000;
+      border:1px solid #f5dfae;
+      font-size:11px;
+      line-height:1.45;
+    }
+
+    .score-grid{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:8px;
+      margin-top:12px;
+    }
+
+    .score{
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:12px;
+    }
+
+    .score span{
+      font-size:10px;
+      color:#667085;
+    }
+
+    .score strong{
+      display:block;
+      margin-top:4px;
+      font-size:18px;
+    }
+
+    .detail-section{
+      margin-top:16px;
+    }
+
+    .detail-section h3{
+      font-size:12px;
+      margin:0 0 8px;
+    }
+
+    .detail-section p,
+    .detail-section li{
+      font-size:12px;
+      line-height:1.5;
+      color:#475467;
+    }
+
+    .detail-section ul{
+      padding-left:18px;
+      margin:0;
+    }
+
+    .source{
+      margin-top:16px;
+      padding-top:12px;
+      border-top:1px solid var(--line);
+      font-size:10px;
+      color:#667085;
+      line-height:1.45;
+    }
+
+    .loading{
+      position:fixed;
+      z-index:1200;
+      top:76px;
+      left:50%;
+      transform:translateX(-50%);
+      padding:9px 13px;
+      border-radius:999px;
+      background:rgba(17,24,39,.9);
+      color:#fff;
+      font-size:11px;
+      box-shadow:var(--shadow);
+    }
+
+    .error{
+      position:fixed;
+      z-index:1200;
+      top:76px;
+      left:50%;
+      transform:translateX(-50%);
+      max-width:min(680px,calc(100vw - 30px));
+      padding:10px 13px;
+      border-radius:12px;
+      background:#fff1f1;
+      color:#9b1c1c;
+      border:1px solid #f2c1c1;
+      font-size:11px;
+      box-shadow:var(--shadow);
+      cursor:pointer;
+    }
+
+    .overview-list{
+      margin-top:14px;
+      display:grid;
+      gap:7px;
+    }
+
+    .overview-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:10px 11px;
+      border:1px solid var(--line);
+      border-radius:11px;
+      font-size:12px;
+    }
+
+    .overview-item span{
+      color:#667085;
+    }
+
+    .overview-item strong{
+      font-size:12px;
+    }
+
+    @media(max-width:900px){
+      .region-select{
+        display:none;
+      }
+
+      .mode{
+        display:none;
+      }
+
+      .brand{
+        padding:0 12px;
+      }
+
+      .search{
+        max-width:none;
+      }
+
+      .layers{
+        width:280px;
+      }
+
+      .detail{
+        width:min(390px,calc(100vw - 32px));
+      }
+    }
+
+    @media(max-width:640px){
+      .topbar{
+        top:9px;
+        left:9px;
+        right:9px;
+      }
+
+      .brand{
+        height:44px;
+      }
+
+      .search{
+        height:44px;
+        min-width:0;
+      }
+
+      .search button{
+        padding:0 10px;
+      }
+
+      .layers{
+        left:9px;
+        bottom:74px;
+        width:calc(100vw - 18px);
+        max-height:36vh;
+      }
+
+      .detail{
+        left:9px;
+        right:9px;
+        top:auto;
+        bottom:74px;
+        width:auto;
+        max-height:48vh;
+        border-radius:18px;
+      }
+
+      .fixed-open{
+        bottom:12px;
+        max-width:calc(100vw - 24px);
+        white-space:nowrap;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-<div class="app">
+<div id="root"></div>
 
-    <!-- ========================= -->
-    <!-- HEADER -->
-    <!-- ========================= -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  crossorigin="">
+</script>
 
-    <header class="topbar">
+<script
+  type="text/babel"
+  data-presets="typescript,react"
+>
 
-        <div class="logo">
-            <div class="logo-icon">
-                <i class="fa-solid fa-location-dot"></i>
+const {
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} = React;
+
+
+/* =========================================================
+   BYDLENÍ — AKTUÁLNÍ VERZE
+   =========================================================
+
+   Hlavní vlastnosti:
+
+   1. Celá ČR
+   2. Plošné polygonové zóny
+   3. Žádné bodové tečky pro ceny
+   4. Žádné bodové tečky pro zeleň
+   5. Žádné bodové tečky pro hluk
+   6. Žádné bodové tečky pro bezpečnost
+   7. Školy jsou jediný bodový POI systém
+   8. ČÚZK / RÚIAN hranice
+   9. Automatické přepínání:
+      kraje
+      okresy
+      obce
+      katastry
+   10. Vyhledávání
+   11. Detail polygonu
+   12. Fixní ovládací panel
+   13. GitHub Pages bez npm/build procesu
+
+   DATA:
+
+   RealityMIX:
+   - skutečné nabídkové ceny pro 13 krajských měst
+   - skutečné hodnoty nájmů pro 13 krajských měst
+
+   Ostatní celostátní tematické hodnoty:
+   - DEMO
+   - jsou takto označené přímo v aplikaci
+
+   ========================================================= */
+
+
+const RUIAN =
+  "https://ags.cuzk.gov.cz/arcgis/rest/services/RUIAN/MapServer";
+
+
+/* =========================================================
+   VRSTVY
+   ========================================================= */
+
+const LAYERS = {
+
+  price:{
+    label:"Ceny nemovitostí",
+    icon:"₿",
+    real:true
+  },
+
+  rent:{
+    label:"Nájmy",
+    icon:"⌂",
+    real:true
+  },
+
+  green:{
+    label:"Zeleň",
+    icon:"🌿",
+    real:false
+  },
+
+  noise:{
+    label:"Hluk",
+    icon:"◉",
+    real:false
+  },
+
+  safety:{
+    label:"Bezpečnost",
+    icon:"✓",
+    real:false
+  },
+
+  schools:{
+    label:"Školy",
+    icon:"🎓",
+    real:false,
+    poi:true
+  }
+
+};
+
+
+/* =========================================================
+   REALITYMIX — ZÁŘÍ 2026
+   Kč / m²
+   ========================================================= */
+
+const CAPITAL_PRICES = {
+
+  "Praha":154338,
+
+  "České Budějovice":87304,
+
+  "Brno":123456,
+
+  "Karlovy Vary":69660,
+
+  "Hradec Králové":96898,
+
+  "Liberec":83642,
+
+  "Ostrava":71032,
+
+  "Olomouc":86539,
+
+  "Pardubice":84773,
+
+  "Plzeň":94816,
+
+  "Ústí nad Labem":51580,
+
+  "Jihlava":71148,
+
+  "Zlín":87253
+
+};
+
+
+/* =========================================================
+   REALITYMIX — NÁJMY
+   Kč / m² / měsíc
+   ========================================================= */
+
+const CAPITAL_RENTS = {
+
+  "Praha":465,
+
+  "České Budějovice":276,
+
+  "Brno":463,
+
+  "Karlovy Vary":236,
+
+  "Hradec Králové":294,
+
+  "Liberec":290,
+
+  "Ostrava":250,
+
+  "Olomouc":280,
+
+  "Pardubice":288,
+
+  "Plzeň":292,
+
+  "Ústí nad Labem":244,
+
+  "Jihlava":248,
+
+  "Zlín":284
+
+};
+
+
+/* =========================================================
+   KRAJSKÁ MĚSTA
+   ========================================================= */
+
+const CAPITALS = [
+
+  [
+    "Praha",
+    "Hlavní město Praha",
+    50.0755,
+    14.4378
+  ],
+
+  [
+    "Brno",
+    "Jihomoravský kraj",
+    49.1951,
+    16.6068
+  ],
+
+  [
+    "Ostrava",
+    "Moravskoslezský kraj",
+    49.8209,
+    18.2625
+  ],
+
+  [
+    "Plzeň",
+    "Plzeňský kraj",
+    49.7384,
+    13.3736
+  ],
+
+  [
+    "Liberec",
+    "Liberecký kraj",
+    50.7663,
+    15.0543
+  ],
+
+  [
+    "Olomouc",
+    "Olomoucký kraj",
+    49.5938,
+    17.2509
+  ],
+
+  [
+    "České Budějovice",
+    "Jihočeský kraj",
+    48.9745,
+    14.4743
+  ],
+
+  [
+    "Hradec Králové",
+    "Královéhradecký kraj",
+    50.2092,
+    15.8328
+  ],
+
+  [
+    "Ústí nad Labem",
+    "Ústecký kraj",
+    50.6607,
+    14.0323
+  ],
+
+  [
+    "Pardubice",
+    "Pardubický kraj",
+    50.0343,
+    15.7812
+  ],
+
+  [
+    "Zlín",
+    "Zlínský kraj",
+    49.2244,
+    17.6628
+  ],
+
+  [
+    "Karlovy Vary",
+    "Karlovarský kraj",
+    50.2319,
+    12.8711
+  ],
+
+  [
+    "Jihlava",
+    "Kraj Vysočina",
+    49.3961,
+    15.5912
+  ]
+
+];
+
+
+const CAPITAL_LOOKUP =
+  Object.fromEntries(
+    CAPITALS.map(
+      ([name,region,lat,lng]) => [
+        name,
+        {
+          name,
+          region,
+          lat,
+          lng
+        }
+      ]
+    )
+  );
+
+
+/* =========================================================
+   STŘEDY KRAJŮ
+   ========================================================= */
+
+const REGION_CENTERS = {
+
+  "Hlavní město Praha":
+    [50.0755,14.4378],
+
+  "Jihomoravský kraj":
+    [49.1951,16.6068],
+
+  "Moravskoslezský kraj":
+    [49.8209,18.2625],
+
+  "Plzeňský kraj":
+    [49.7384,13.3736],
+
+  "Liberecký kraj":
+    [50.7663,15.0543],
+
+  "Olomoucký kraj":
+    [49.5938,17.2509],
+
+  "Jihočeský kraj":
+    [48.9745,14.4743],
+
+  "Královéhradecký kraj":
+    [50.2092,15.8328],
+
+  "Ústecký kraj":
+    [50.6607,14.0323],
+
+  "Pardubický kraj":
+    [50.0343,15.7812],
+
+  "Zlínský kraj":
+    [49.2244,17.6628],
+
+  "Karlovarský kraj":
+    [50.2319,12.8711],
+
+  "Kraj Vysočina":
+    [49.3961,15.5912],
+
+  "Středočeský kraj":
+    [50.0835,14.4743]
+
+};
+
+
+const REGION_OPTIONS = [
+
+  "Všechny kraje",
+
+  "Hlavní město Praha",
+
+  "Středočeský kraj",
+
+  "Jihočeský kraj",
+
+  "Plzeňský kraj",
+
+  "Karlovarský kraj",
+
+  "Ústecký kraj",
+
+  "Liberecký kraj",
+
+  "Královéhradecký kraj",
+
+  "Pardubický kraj",
+
+  "Kraj Vysočina",
+
+  "Jihomoravský kraj",
+
+  "Olomoucký kraj",
+
+  "Zlínský kraj",
+
+  "Moravskoslezský kraj"
+
+];
+
+
+/* =========================================================
+   POMOCNÉ FUNKCE
+   ========================================================= */
+
+function esc(value){
+
+  return String(value ?? "")
+    .replace(
+      /[&<>"']/g,
+      s => ({
+        "&":"&amp;",
+        "<":"&lt;",
+        ">":"&gt;",
+        '"':"&quot;",
+        "'":"&#039;"
+      }[s])
+    );
+
+}
+
+
+function fmt(
+  number,
+  suffix=""
+){
+
+  if(
+    number === null ||
+    number === undefined ||
+    Number.isNaN(Number(number))
+  ){
+    return "—";
+  }
+
+  return (
+    new Intl.NumberFormat("cs-CZ")
+      .format(Math.round(Number(number)))
+    +
+    suffix
+  );
+
+}
+
+
+function hashString(value){
+
+  const s=String(value ?? "");
+
+  let h=2166136261;
+
+  for(
+    let i=0;
+    i<s.length;
+    i++
+  ){
+
+    h ^= s.charCodeAt(i);
+
+    h=Math.imul(
+      h,
+      16777619
+    );
+
+  }
+
+  return h >>> 0;
+
+}
+
+
+/* =========================================================
+   DEMO HODNOTY
+   ========================================================= */
+
+function seeded(
+  feature,
+  min,
+  max
+){
+
+  const seed=hashString(
+
+    feature?.properties?.kod ??
+    feature?.properties?.objectid ??
+    feature?.properties?.nazev ??
+    "unknown"
+
+  );
+
+  const t=
+    (seed % 10000) / 10000;
+
+  return min + t*(max-min);
+
+}
+
+
+/* =========================================================
+   METRIKY
+   ========================================================= */
+
+function getMetric(
+  feature,
+  layer
+){
+
+  const name =
+    feature?.properties?.nazev ||
+    "Neznámé území";
+
+
+  /* CENY */
+
+  if(layer==="price"){
+
+    if(CAPITAL_PRICES[name]){
+
+      return {
+
+        value:CAPITAL_PRICES[name],
+
+        real:true,
+
+        label:
+          "RealityMIX 09/2026 — nabídková cena"
+
+      };
+
+    }
+
+    return {
+
+      value:
+        seeded(
+          feature,
+          42000,
+          115000
+        ),
+
+      real:false,
+
+      label:
+        "DEMO index — není skutečná tržní cena"
+
+    };
+
+  }
+
+
+  /* NÁJMY */
+
+  if(layer==="rent"){
+
+    if(CAPITAL_RENTS[name]){
+
+      return {
+
+        value:CAPITAL_RENTS[name],
+
+        real:true,
+
+        label:
+          "RealityMIX 09/2026 — Kč/m²/měsíc"
+
+      };
+
+    }
+
+    return {
+
+      value:
+        seeded(
+          feature,
+          180,
+          390
+        ),
+
+      real:false,
+
+      label:
+        "DEMO index — není skutečný nájem"
+
+    };
+
+  }
+
+
+  /* ZELEŇ */
+
+  if(layer==="green"){
+
+    return {
+
+      value:
+        seeded(
+          feature,
+          15,
+          78
+        ),
+
+      real:false,
+
+      label:
+        "DEMO podíl zeleně"
+
+    };
+
+  }
+
+
+  /* HLUK */
+
+  if(layer==="noise"){
+
+    return {
+
+      value:
+        seeded(
+          feature,
+          15,
+          92
+        ),
+
+      real:false,
+
+      label:
+        "DEMO index hluku"
+
+    };
+
+  }
+
+
+  /* BEZPEČNOST */
+
+  if(layer==="safety"){
+
+    return {
+
+      value:
+        seeded(
+          feature,
+          35,
+          96
+        ),
+
+      real:false,
+
+      label:
+        "DEMO index bezpečnosti"
+
+    };
+
+  }
+
+
+  return {
+
+    value:0,
+
+    real:false,
+
+    label:""
+
+  };
+
+}
+
+
+/* =========================================================
+   BAREVNÉ ŠKÁLY
+   ========================================================= */
+
+function colorScale(
+  layer,
+  value
+){
+
+  if(layer==="price"){
+
+    const min=42000;
+    const max=155000;
+
+    const t=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          (value-min)/(max-min)
+        )
+      );
+
+    const hue=
+      120-(120*t);
+
+    return `hsl(${hue},78%,48%)`;
+
+  }
+
+
+  if(layer==="rent"){
+
+    const min=180;
+    const max=470;
+
+    const t=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          (value-min)/(max-min)
+        )
+      );
+
+    const hue=
+      115-(90*t);
+
+    return `hsl(${hue},72%,48%)`;
+
+  }
+
+
+  if(layer==="green"){
+
+    const t=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          value/100
+        )
+      );
+
+    return `
+      hsl(
+        120,
+        ${42+35*t}%,
+        ${72-42*t}%
+      )
+    `;
+
+  }
+
+
+  if(layer==="noise"){
+
+    const t=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          value/100
+        )
+      );
+
+    const hue=
+      120-(120*t);
+
+    return `hsl(${hue},78%,48%)`;
+
+  }
+
+
+  if(layer==="safety"){
+
+    const t=
+      Math.max(
+        0,
+        Math.min(
+          1,
+          value/100
+        )
+      );
+
+    return `
+      hsl(
+        ${215-155*t},
+        72%,
+        ${56-12*t}%
+      )
+    `;
+
+  }
+
+
+  return "#94a3b8";
+
+}
+
+
+/* =========================================================
+   HIERARCHIE PODLE ZOOMU
+   ========================================================= */
+
+function hierarchyForZoom(z){
+
+  if(z<=7.5){
+
+    return {
+      id:17,
+      name:"kraje"
+    };
+
+  }
+
+  if(z<=10){
+
+    return {
+      id:15,
+      name:"okresy"
+    };
+
+  }
+
+  if(z<=12.5){
+
+    return {
+      id:12,
+      name:"obce"
+    };
+
+  }
+
+  return {
+
+    id:7,
+    name:"katastry"
+
+  };
+
+}
+
+
+/* =========================================================
+   BBOX
+   ========================================================= */
+
+function bboxFromMap(map){
+
+  const b=map.getBounds();
+
+  return [
+
+    b.getWest(),
+
+    b.getSouth(),
+
+    b.getEast(),
+
+    b.getNorth()
+
+  ];
+
+}
+
+
+/* =========================================================
+   ČÚZK GEOJSON
+   ========================================================= */
+
+async function fetchGeoJSON(
+  layerId,
+  bbox
+){
+
+  const [
+    xmin,
+    ymin,
+    xmax,
+    ymax
+  ]=bbox;
+
+
+  const params=
+    new URLSearchParams({
+
+      where:"1=1",
+
+      geometry:
+        `${xmin},${ymin},${xmax},${ymax}`,
+
+      geometryType:
+        "esriGeometryEnvelope",
+
+      inSR:"4326",
+
+      spatialRel:
+        "esriSpatialRelIntersects",
+
+      outFields:"*",
+
+      returnGeometry:"true",
+
+      outSR:"4326",
+
+      f:"geojson",
+
+      resultRecordCount:"1000",
+
+      resultOffset:"0"
+
+    });
+
+
+  const first=
+    await fetch(
+      `${RUIAN}/${layerId}/query?${params.toString()}`
+    );
+
+
+  if(!first.ok){
+
+    throw new Error(
+      `ČÚZK query ${first.status}`
+    );
+
+  }
+
+
+  const firstJson=
+    await first.json();
+
+
+  if(firstJson.error){
+
+    throw new Error(
+      firstJson.error.message ||
+      "ČÚZK query error"
+    );
+
+  }
+
+
+  let features=
+    firstJson.features || [];
+
+
+  let offset=1000;
+
+
+  while(
+    firstJson.exceededTransferLimit &&
+    offset<=5000
+  ){
+
+    const p=
+      new URLSearchParams(params);
+
+    p.set(
+      "resultOffset",
+      String(offset)
+    );
+
+
+    const response=
+      await fetch(
+        `${RUIAN}/${layerId}/query?${p.toString()}`
+      );
+
+
+    if(!response.ok){
+      break;
+    }
+
+
+    const json=
+      await response.json();
+
+
+    if(!json.features?.length){
+      break;
+    }
+
+
+    features=
+      features.concat(
+        json.features
+      );
+
+
+    if(!json.exceededTransferLimit){
+      break;
+    }
+
+
+    offset+=1000;
+
+  }
+
+
+  return {
+
+    type:"FeatureCollection",
+
+    features
+
+  };
+
+}
+
+
+/* =========================================================
+   ŠKOLY — OVERPASS
+   ========================================================= */
+
+async function fetchSchools(map){
+
+  const b=map.getBounds();
+
+
+  const south=b.getSouth();
+  const west=b.getWest();
+  const north=b.getNorth();
+  const east=b.getEast();
+
+
+  const query=`
+
+    [out:json][timeout:20];
+
+    (
+
+      node["amenity"="school"]
+      (${south},${west},${north},${east});
+
+      way["amenity"="school"]
+      (${south},${west},${north},${east});
+
+      relation["amenity"="school"]
+      (${south},${west},${north},${east});
+
+      node["amenity"="kindergarten"]
+      (${south},${west},${north},${east});
+
+      node["amenity"="university"]
+      (${south},${west},${north},${east});
+
+    );
+
+    out center tags;
+
+  `;
+
+
+  const url=
+    "https://overpass-api.de/api/interpreter?data="+
+    encodeURIComponent(query);
+
+
+  const response=
+    await fetch(url);
+
+
+  if(!response.ok){
+
+    throw new Error(
+      "Školní POI služba není dostupná."
+    );
+
+  }
+
+
+  return await response.json();
+
+}
+
+
+function poiToLatLng(element){
+
+  if(
+    element.lat &&
+    element.lon
+  ){
+
+    return [
+      element.lat,
+      element.lon
+    ];
+
+  }
+
+
+  if(element.center){
+
+    return [
+      element.center.lat,
+      element.center.lon
+    ];
+
+  }
+
+
+  return null;
+
+}
+
+
+function poiName(element){
+
+  return (
+    element.tags?.name ||
+    "Škola / školské zařízení"
+  );
+
+}
+
+
+/* =========================================================
+   APP
+   ========================================================= */
+
+function App(){
+
+  const mapRef=
+    useRef(null);
+
+  const zoneLayerRef=
+    useRef(null);
+
+  const poiLayerRef=
+    useRef(null);
+
+  const requestIdRef=
+    useRef(0);
+
+
+  const [
+    mapReady,
+    setMapReady
+  ]=useState(false);
+
+
+  const [
+    zoom,
+    setZoom
+  ]=useState(7.5);
+
+
+  const [
+    viewportVersion,
+    setViewportVersion
+  ]=useState(0);
+
+
+  const [
+    activeLayer,
+    setActiveLayer
+  ]=useState("price");
+
+
+  const [
+    enabled,
+    setEnabled
+  ]=useState({
+
+    price:true,
+
+    rent:false,
+
+    green:false,
+
+    noise:false,
+
+    safety:false,
+
+    schools:false
+
+  });
+
+
+  const [
+    region,
+    setRegion
+  ]=useState(
+    "Všechny kraje"
+  );
+
+
+  const [
+    selected,
+    setSelected
+  ]=useState(null);
+
+
+  const [
+    panelOpen,
+    setPanelOpen
+  ]=useState(false);
+
+
+  const [
+    overview,
+    setOverview
+  ]=useState(false);
+
+
+  const [
+    query,
+    setQuery
+  ]=useState("");
+
+
+  const [
+    searchOpen,
+    setSearchOpen
+  ]=useState(false);
+
+
+  const [
+    loading,
+    setLoading
+  ]=useState(false);
+
+
+  const [
+    error,
+    setError
+  ]=useState("");
+
+
+  const [
+    poiLoading,
+    setPoiLoading
+  ]=useState(false);
+
+
+  /* =======================================================
+     LOKÁLNÍ VÝSLEDKY
+     ======================================================= */
+
+  const localMatches=
+    useMemo(()=>{
+
+      const q=
+        query
+          .trim()
+          .toLowerCase();
+
+
+      if(!q){
+        return [];
+      }
+
+
+      return CAPITALS
+
+        .filter(
+          ([name,reg]) =>
+
+            name
+              .toLowerCase()
+              .includes(q)
+
+            ||
+
+            reg
+              .toLowerCase()
+              .includes(q)
+        )
+
+        .slice(0,7);
+
+    },[query]);
+
+
+  /* =======================================================
+     VYTVOŘENÍ MAPY
+     ======================================================= */
+
+  useEffect(()=>{
+
+    const map=
+      L.map(
+        "map",
+        {
+
+          center:[
+            49.7437,
+            15.3386
+          ],
+
+          zoom:7.5,
+
+          minZoom:6,
+
+          maxZoom:16,
+
+          zoomControl:false,
+
+          preferCanvas:true
+
+        }
+      );
+
+
+    L.control
+      .zoom({
+        position:"bottomright"
+      })
+      .addTo(map);
+
+
+    L.tileLayer(
+
+      "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+      {
+
+        maxZoom:19,
+
+        attribution:
+          "&copy; OpenStreetMap contributors"
+
+      }
+
+    ).addTo(map);
+
+
+    zoneLayerRef.current=
+      L.geoJSON(
+        [],
+        {
+
+          style:{
+
+            color:"#ffffff",
+
+            weight:1,
+
+            opacity:.8,
+
+            fillOpacity:.55
+
+          }
+
+        }
+      )
+      .addTo(map);
+
+
+    poiLayerRef.current=
+      L.layerGroup()
+        .addTo(map);
+
+
+    mapRef.current=
+      map;
+
+
+    setMapReady(true);
+
+
+    const onZoom=
+      ()=>{
+        setZoom(
+          map.getZoom()
+        );
+      };
+
+
+    const onMoveEnd=
+      ()=>{
+        setViewportVersion(
+          value=>value+1
+        );
+      };
+
+
+    map.on(
+      "zoomend",
+      onZoom
+    );
+
+
+    map.on(
+      "moveend",
+      onMoveEnd
+    );
+
+
+    return ()=>{
+
+      map.off(
+        "zoomend",
+        onZoom
+      );
+
+      map.off(
+        "moveend",
+        onMoveEnd
+      );
+
+      map.remove();
+
+      mapRef.current=null;
+
+    };
+
+  },[]);
+
+
+  /* =======================================================
+     NAČTENÍ POLYGONŮ
+     ======================================================= */
+
+  useEffect(()=>{
+
+    if(
+      !mapReady ||
+      !mapRef.current
+    ){
+
+      return;
+    }
+
+
+    const map=
+      mapRef.current;
+
+
+    let cancelled=false;
+
+
+    const loadZones=
+      async()=>{
+
+        const currentRequest=
+          ++requestIdRef.current;
+
+
+        setLoading(true);
+
+        setError("");
+
+
+        try{
+
+          const hierarchy=
+            hierarchyForZoom(
+              map.getZoom()
+            );
+
+
+          const geo=
+            await fetchGeoJSON(
+
+              hierarchy.id,
+
+              bboxFromMap(map)
+
+            );
+
+
+          if(
+            cancelled ||
+            currentRequest !==
+            requestIdRef.current
+          ){
+
+            return;
+
+          }
+
+
+          let filtered=
+            geo.features;
+
+
+          /*
+            Filtr kraje.
+
+            RÚIAN stále poskytuje oficiální hranice.
+            Při výběru kraje se zobrazí pouze
+            relevantní oblast kolem zvoleného kraje.
+
+            Při běžném zobrazení celé ČR zůstávají
+            viditelné všechny polygony.
+          */
+
+          if(
+            region!=="Všechny kraje" &&
+            map.getZoom()>7.5
+          ){
+
+            const center=
+              REGION_CENTERS[region];
+
+
+            if(center){
+
+              const latPad=1.05;
+              const lngPad=1.35;
+
+
+              filtered=
+                geo.features.filter(
+                  feature=>{
+
+                    try{
+
+                      const bounds=
+                        L.geoJSON(
+                          feature
+                        ).getBounds();
+
+
+                      const centerPoint=
+                        bounds.getCenter();
+
+
+                      return (
+
+                        Math.abs(
+                          centerPoint.lat -
+                          center[0]
+                        )
+                        <=
+                        latPad
+
+                        &&
+
+                        Math.abs(
+                          centerPoint.lng -
+                          center[1]
+                        )
+                        <=
+                        lngPad
+
+                      );
+
+                    }catch{
+
+                      return true;
+
+                    }
+
+                  }
+                );
+
+            }
+
+          }
+
+
+          zoneLayerRef
+            .current
+            .clearLayers();
+
+
+          const layer=
+            L.geoJSON(
+
+              {
+                type:
+                  "FeatureCollection",
+
+                features:
+                  filtered
+
+              },
+
+              {
+
+                style:
+                  feature=>{
+
+                    const metric=
+                      getMetric(
+                        feature,
+                        activeLayer
+                      );
+
+
+                    const color=
+                      colorScale(
+                        activeLayer,
+                        metric.value
+                      );
+
+
+                    return {
+
+                      color:
+                        "#ffffff",
+
+                      weight:1,
+
+                      opacity:.9,
+
+                      fillColor:
+                        color,
+
+                      fillOpacity:.58
+
+                    };
+
+                  },
+
+
+                onEachFeature:
+                  (feature,layer)=>{
+
+                    const properties=
+                      feature.properties || {};
+
+
+                    const metric=
+                      getMetric(
+                        feature,
+                        activeLayer
+                      );
+
+
+                    const level=
+                      hierarchy.name;
+
+
+                    layer.bindTooltip(
+
+                      `<strong>${esc(
+                        properties.nazev ||
+                        "Území"
+                      )}</strong><br>`+
+
+                      `<span>${esc(
+                        level
+                      )} · ${esc(
+                        LAYERS[
+                          activeLayer
+                        ]?.label ||
+                        ""
+                      )}</span>`,
+
+                      {
+
+                        sticky:true,
+
+                        direction:"top",
+
+                        opacity:.96
+
+                      }
+
+                    );
+
+
+                    layer.on(
+                      "mouseover",
+                      ()=>{
+
+                        layer.setStyle({
+
+                          weight:2,
+
+                          fillOpacity:.72
+
+                        });
+
+                      }
+                    );
+
+
+                    layer.on(
+                      "mouseout",
+                      ()=>{
+
+                        layer.setStyle({
+
+                          weight:1,
+
+                          fillOpacity:.58
+
+                        });
+
+                      }
+                    );
+
+
+                    layer.on(
+                      "click",
+                      ()=>{
+
+                        const detail={
+
+                          name:
+                            properties.nazev ||
+                            "Neznámé území",
+
+                          level,
+
+                          properties,
+
+                          feature,
+
+                          metric,
+
+                          activeLayer
+
+                        };
+
+
+                        setSelected(
+                          detail
+                        );
+
+
+                        setOverview(false);
+
+                        setPanelOpen(true);
+
+                      }
+                    );
+
+                  }
+
+              }
+
+            );
+
+
+          layer.addTo(
+            zoneLayerRef.current
+          );
+
+
+        }catch(exception){
+
+          console.error(
+            exception
+          );
+
+
+          if(!cancelled){
+
+            setError(
+              "Mapová data ČÚZK se nepodařilo načíst. Zkus chvíli počkat nebo obnovit stránku."
+            );
+
+          }
+
+        }finally{
+
+          if(
+            !cancelled &&
+            currentRequest ===
+            requestIdRef.current
+          ){
+
+            setLoading(false);
+
+          }
+
+        }
+
+      };
+
+
+    loadZones();
+
+
+    return ()=>{
+
+      cancelled=true;
+
+    };
+
+
+  },[
+    mapReady,
+    zoom,
+    activeLayer,
+    region,
+    viewportVersion
+  ]);
+
+
+  /* =======================================================
+     ŠKOLY
+     ======================================================= */
+
+  useEffect(()=>{
+
+    if(
+      !mapReady ||
+      !mapRef.current ||
+      !enabled.schools
+    ){
+
+      poiLayerRef
+        .current
+        ?.clearLayers();
+
+      return;
+
+    }
+
+
+    const map=
+      mapRef.current;
+
+
+    let cancelled=false;
+
+
+    const loadPOIs=
+      async()=>{
+
+        setPoiLoading(true);
+
+
+        try{
+
+          const data=
+            await fetchSchools(
+              map
+            );
+
+
+          if(cancelled){
+            return;
+          }
+
+
+          poiLayerRef
+            .current
+            .clearLayers();
+
+
+          const seen=
+            new Set();
+
+
+          (
+            data.elements ||
+            []
+          ).forEach(
+            element=>{
+
+              const latLng=
+                poiToLatLng(
+                  element
+                );
+
+
+              if(!latLng){
+                return;
+              }
+
+
+              const key=
+                latLng.join(",");
+
+
+              if(
+                seen.has(key)
+              ){
+
+                return;
+
+              }
+
+
+              seen.add(key);
+
+
+              const marker=
+                L.circleMarker(
+                  latLng,
+                  {
+
+                    radius:6,
+
+                    color:"#1d4ed8",
+
+                    weight:2,
+
+                    fillColor:"#60a5fa",
+
+                    fillOpacity:.95
+
+                  }
+                );
+
+
+              marker.bindTooltip(
+
+                `<strong>${esc(
+                  poiName(element)
+                )}</strong><br>`+
+
+                `<span>
+                  POI · OpenStreetMap
+                </span>`,
+
+                {
+
+                  direction:"top",
+
+                  opacity:.96
+
+                }
+
+              );
+
+
+              marker.on(
+                "click",
+                ()=>{
+
+                  setSelected({
+
+                    name:
+                      poiName(element),
+
+                    level:
+                      "POI",
+
+                    properties:
+                      element.tags || {},
+
+                    metric:{
+
+                      value:null,
+
+                      real:false,
+
+                      label:
+                        "OpenStreetMap POI"
+
+                    },
+
+                    activeLayer:
+                      "schools"
+
+                  });
+
+
+                  setOverview(false);
+
+                  setPanelOpen(true);
+
+                }
+              );
+
+
+              marker.addTo(
+                poiLayerRef.current
+              );
+
+            }
+          );
+
+
+        }catch(exception){
+
+          console.error(
+            exception
+          );
+
+        }finally{
+
+          if(!cancelled){
+
+            setPoiLoading(false);
+
+          }
+
+        }
+
+      };
+
+
+    loadPOIs();
+
+
+    let poiTimer;
+
+
+    const refresh=
+      ()=>{
+
+        clearTimeout(
+          poiTimer
+        );
+
+
+        poiTimer=
+          setTimeout(
+            loadPOIs,
+            600
+          );
+
+      };
+
+
+    map.on(
+      "moveend",
+      refresh
+    );
+
+
+    map.on(
+      "zoomend",
+      refresh
+    );
+
+
+    return ()=>{
+
+      cancelled=true;
+
+      clearTimeout(
+        poiTimer
+      );
+
+
+      map.off(
+        "moveend",
+        refresh
+      );
+
+      map.off(
+        "zoomend",
+        refresh
+      );
+
+    };
+
+  },[
+    mapReady,
+    enabled.schools
+  ]);
+
+
+  /* =======================================================
+     PŘEPÍNÁNÍ VRSTEV
+     ======================================================= */
+
+  const toggleLayer=
+    key=>{
+
+      setEnabled(
+        previous=>{
+
+          const next={
+
+            ...previous,
+
+            [key]:
+              !previous[key]
+
+          };
+
+
+          if(
+            key!=="schools" &&
+            !next[key]
+          ){
+
+            const activeKeys=
+              Object.keys(
+                LAYERS
+              ).filter(
+                currentKey=>
+                  currentKey!=="schools" &&
+                  next[currentKey]
+              );
+
+
+            if(
+              activeLayer===key &&
+              activeKeys.length
+            ){
+
+              setActiveLayer(
+                activeKeys[0]
+              );
+
+            }
+
+          }
+
+
+          return next;
+
+        }
+      );
+
+
+      if(
+        key!=="schools"
+      ){
+
+        setActiveLayer(
+          key
+        );
+
+      }
+
+    };
+
+
+  /* =======================================================
+     KRAJ
+     ======================================================= */
+
+  const flyToRegion=
+    value=>{
+
+      setRegion(
+        value
+      );
+
+
+      if(
+        !mapRef.current
+      ){
+
+        return;
+
+      }
+
+
+      if(
+        value==="Všechny kraje"
+      ){
+
+        mapRef.current.setView(
+
+          [
+            49.7437,
+            15.3386
+          ],
+
+          7.5,
+
+          {
+            animate:true
+          }
+
+        );
+
+        return;
+
+      }
+
+
+      const center=
+        REGION_CENTERS[
+          value
+        ];
+
+
+      if(center){
+
+        mapRef.current.flyTo(
+
+          center,
+
+          10.3,
+
+          {
+            duration:1.2
+          }
+
+        );
+
+      }
+
+    };
+
+
+  /* =======================================================
+     VÝBĚR KRAJSKÉHO MĚSTA
+     ======================================================= */
+
+  const selectCapital=
+    capital=>{
+
+      const [
+        name,
+        regionName,
+        lat,
+        lng
+      ]=capital;
+
+
+      setQuery(
+        name
+      );
+
+
+      setSearchOpen(
+        false
+      );
+
+
+      setSelected({
+
+        name,
+
+        level:
+          "krajské město",
+
+        properties:{
+          nazev:name
+        },
+
+        metric:{
+
+          value:
+            CAPITAL_PRICES[name],
+
+          real:true,
+
+          label:
+            "RealityMIX 09/2026 — nabídková cena"
+
+        },
+
+        activeLayer:
+          "price"
+
+      });
+
+
+      setActiveLayer(
+        "price"
+      );
+
+
+      setEnabled(
+        previous=>({
+
+          ...previous,
+
+          price:true
+
+        })
+      );
+
+
+      setPanelOpen(
+        true
+      );
+
+
+      setOverview(
+        false
+      );
+
+
+      mapRef.current?.flyTo(
+
+        [
+          lat,
+          lng
+        ],
+
+        11.2,
+
+        {
+          duration:1.2
+        }
+
+      );
+
+    };
+
+
+  /* =======================================================
+     VYHLEDÁVÁNÍ
+     ======================================================= */
+
+  const doSearch=
+    async event=>{
+
+      event?.preventDefault();
+
+
+      const q=
+        query.trim();
+
+
+      if(!q){
+        return;
+      }
+
+
+      const exact=
+        CAPITALS.find(
+
+          ([name])=>
+
+            name.toLowerCase() ===
+            q.toLowerCase()
+
+        );
+
+
+      if(exact){
+
+        selectCapital(
+          exact
+        );
+
+        return;
+
+      }
+
+
+      try{
+
+        setLoading(
+          true
+        );
+
+
+        const url=
+
+          "https://nominatim.openstreetmap.org/search?"+
+
+          new URLSearchParams({
+
+            q:
+              q+", Česko",
+
+            format:
+              "jsonv2",
+
+            countrycodes:
+              "cz",
+
+            limit:
+              "1",
+
+            "accept-language":
+              "cs"
+
+          }).toString();
+
+
+        const response=
+          await fetch(
+            url
+          );
+
+
+        const data=
+          await response.json();
+
+
+        if(
+          data?.[0]
+        ){
+
+          const lat=
+            Number(
+              data[0].lat
+            );
+
+
+          const lon=
+            Number(
+              data[0].lon
+            );
+
+
+          mapRef.current?.flyTo(
+
+            [
+              lat,
+              lon
+            ],
+
+            14,
+
+            {
+              duration:1.1
+            }
+
+          );
+
+
+          setSelected({
+
+            name:
+              data[0].display_name,
+
+            level:
+              "vyhledané místo",
+
+            properties:{
+
+              nazev:
+                data[0].display_name
+
+            },
+
+            metric:{
+
+              value:null,
+
+              real:false,
+
+              label:
+                "OpenStreetMap / Nominatim"
+
+            },
+
+            activeLayer:
+              "search"
+
+          });
+
+
+          setOverview(
+            false
+          );
+
+
+          setPanelOpen(
+            true
+          );
+
+
+          setSearchOpen(
+            false
+          );
+
+
+        }else{
+
+          setError(
+            "Místo se nepodařilo najít."
+          );
+
+        }
+
+
+      }catch(exception){
+
+        console.error(
+          exception
+        );
+
+
+        setError(
+          "Vyhledávání je momentálně nedostupné."
+        );
+
+
+      }finally{
+
+        setLoading(
+          false
+        );
+
+      }
+
+    };
+
+
+  const activeMeta=
+    LAYERS[
+      activeLayer
+    ] ||
+    LAYERS.price;
+
+
+  /* =======================================================
+     UI
+     ======================================================= */
+
+  return (
+
+    <>
+
+      <div id="map"></div>
+
+
+      <div className="topbar">
+
+        <div className="brand">
+
+          <span className="brand-dot"></span>
+
+          <span>
+            BYDLENÍ
+          </span>
+
+        </div>
+
+
+        <form
+          className="search"
+          onSubmit={doSearch}
+        >
+
+          <input
+
+            value={query}
+
+            onChange={
+              event=>{
+                setQuery(
+                  event.target.value
+                );
+
+                setSearchOpen(
+                  true
+                );
+              }
+            }
+
+            onFocus={()=>
+              setSearchOpen(true)
+            }
+
+            placeholder=
+              "Hledat obec, ulici, katastr nebo adresu…"
+
+            aria-label="Hledat"
+
+          />
+
+
+          <button
+            type="submit"
+          >
+            Hledat
+          </button>
+
+
+          {
+            searchOpen &&
+            localMatches.length>0 &&
+            (
+
+              <div className="search-results">
+
+                {
+                  localMatches.map(
+                    ([name,reg])=>(
+
+                      <div
+
+                        className="search-result"
+
+                        key={name}
+
+                        onMouseDown={()=>
+                          selectCapital(
+                            CAPITALS.find(
+                              x=>x[0]===name
+                            )
+                          )
+                        }
+
+                      >
+
+                        <strong>
+                          {name}
+                        </strong>
+
+                        <span>
+                          {reg} · krajské město
+                        </span>
+
+                      </div>
+
+                    )
+                  )
+
+                }
+
+              </div>
+
+            )
+          }
+
+        </form>
+
+
+        <select
+
+          className="region-select"
+
+          value={region}
+
+          onChange={
+            event=>
+              flyToRegion(
+                event.target.value
+              )
+          }
+
+          aria-label=
+            "Filtrovat kraj"
+
+        >
+
+          {
+            REGION_OPTIONS.map(
+              currentRegion=>
+
+                <option
+                  key={currentRegion}
+                >
+                  {currentRegion}
+                </option>
+            )
+          }
+
+        </select>
+
+
+        <div className="mode">
+
+          <button
+            className="active"
+          >
+            Bydlení
+          </button>
+
+          <button>
+            Profi
+          </button>
+
+        </div>
+
+      </div>
+
+
+      {
+        loading &&
+        (
+          <div className="loading">
+            Načítám plošná data ČR…
+          </div>
+        )
+      }
+
+
+      {
+        poiLoading &&
+        (
+          <div className="loading">
+            Načítám body škol…
+          </div>
+        )
+      }
+
+
+      {
+        error &&
+        (
+
+          <div
+            className="error"
+            onClick={()=>
+              setError("")
+            }
+          >
+            {error}
+          </div>
+
+        )
+      }
+
+
+      <aside className="layers">
+
+        <div className="panel-title">
+
+          <div>
+
+            <div className="eyebrow">
+              Mapové vrstvy
             </div>
 
-            <span>BYDLENÍ</span>
-        </div>
+            <strong>
+              Tematická mapa ČR
+            </strong>
 
-        <div class="search-container">
+          </div>
 
-            <i class="fa-solid fa-magnifying-glass"></i>
-
-            <input
-                id="searchInput"
-                type="text"
-                placeholder="Vyhledat adresu, ulici nebo lokalitu..."
-                autocomplete="off"
-            >
-
-            <div
-                id="searchResults"
-                class="search-results"
-            ></div>
+          <span className="status-pill">
+            RÚIAN
+          </span>
 
         </div>
 
-        <nav class="navigation">
 
-            <button class="nav-button active">
-                Bydlení
-            </button>
+        {
+          Object.entries(
+            LAYERS
+          ).map(
+            ([key,meta])=>(
 
-            <button class="nav-button">
-                Profi
-            </button>
+              <div
 
-        </nav>
+                key={key}
 
-    </header>
+                className={
+                  `layer-row ${
+                    activeLayer===key
+                      ? "active"
+                      : ""
+                  }`
+                }
+
+                onClick={()=>
+                  key!=="schools" &&
+                  setActiveLayer(key)
+                }
+
+              >
+
+                <input
+
+                  type="checkbox"
+
+                  checked={
+                    !!enabled[key]
+                  }
+
+                  onChange={()=>
+                    toggleLayer(key)
+                  }
+
+                  onClick={
+                    event=>
+                      event.stopPropagation()
+                  }
+
+                />
 
 
-    <!-- ========================= -->
-    <!-- MAP -->
-    <!-- ========================= -->
-
-    <main id="map"></main>
-
-
-    <!-- ========================= -->
-    <!-- MAP CONTROLS -->
-    <!-- ========================= -->
-
-    <div class="map-controls">
-
-        <button
-            id="locateButton"
-            class="map-control"
-            title="Moje poloha"
-        >
-            <i class="fa-solid fa-crosshairs"></i>
-        </button>
-
-    </div>
-
-
-    <!-- ========================= -->
-    <!-- LAYERS -->
-    <!-- ========================= -->
-
-    <aside class="layers-panel">
-
-        <div class="panel-header">
-
-            <div>
-                <div class="eyebrow">
-                    MAPA
+                <div className="layer-icon">
+                  {meta.icon}
                 </div>
 
-                <h2>
-                    Mapové vrstvy
-                </h2>
-            </div>
 
-        </div>
+                <div className="layer-text">
+
+                  <div className="layer-name">
+                    {meta.label}
+                  </div>
+
+                  <div className="layer-sub">
+
+                    {
+                      meta.poi
+                        ? "bodové POI"
+                        : "plošná zóna"
+                    }
+
+                  </div>
+
+                </div>
 
 
-        <div class="layers-list">
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="prices"
+                <span
+                  className={
+                    `status-pill ${
+                      meta.real
+                        ? "real"
+                        : "demo"
+                    }`
+                  }
                 >
 
-                <span class="layer-icon">
-                    <i class="fa-solid fa-building"></i>
+                  {
+                    meta.real
+                      ? "DATA"
+                      : "DEMO"
+                  }
+
                 </span>
 
-                <span>
-                    Ceny nemovitostí
-                </span>
+              </div>
 
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="rent"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-house"></i>
-                </span>
-
-                <span>
-                    Nájemné
-                </span>
-
-            </label>
+            )
+          )
+        }
 
 
-            <label class="layer-item">
+        <div className="legend">
 
-                <input
-                    type="checkbox"
-                    data-layer="transport"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-bus"></i>
-                </span>
-
-                <span>
-                    MHD
-                </span>
-
-            </label>
+          <div className="eyebrow">
+            {activeMeta.label}
+            {" · barevná škála"}
+          </div>
 
 
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="noise"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-volume-high"></i>
-                </span>
-
-                <span>
-                    Hluk
-                </span>
-
-            </label>
+          <div className="legend-bar"></div>
 
 
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="greenery"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-tree"></i>
-                </span>
-
-                <span>
-                    Zeleň
-                </span>
-
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="schools"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-school"></i>
-                </span>
-
-                <span>
-                    Školy
-                </span>
-
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="safety"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-shield-halved"></i>
-                </span>
-
-                <span>
-                    Bezpečnost
-                </span>
-
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="flood"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-water"></i>
-                </span>
-
-                <span>
-                    Povodňové riziko
-                </span>
-
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="parking"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-square-parking"></i>
-                </span>
-
-                <span>
-                    Parkování
-                </span>
-
-            </label>
-
-
-            <label class="layer-item">
-
-                <input
-                    type="checkbox"
-                    data-layer="development"
-                >
-
-                <span class="layer-icon">
-                    <i class="fa-solid fa-city"></i>
-                </span>
-
-                <span>
-                    Plánovaná výstavba
-                </span>
-
-            </label>
-
-        </div>
-
-
-        <div class="demo-note">
-
-            <i class="fa-solid fa-circle-info"></i>
+          <div className="legend-labels">
 
             <span>
-                Některé vrstvy jsou zatím pouze připravené
-                pro budoucí datové zdroje.
+
+              {
+                activeLayer==="noise"
+                  ? "klid"
+
+                  : activeLayer==="green"
+                  ? "méně zeleně"
+
+                  : "nižší"
+              }
+
             </span>
 
+
+            <span>
+
+              {
+                activeLayer==="noise"
+                  ? "hluk"
+
+                  : activeLayer==="green"
+                  ? "více zeleně"
+
+                  : "vyšší"
+              }
+
+            </span>
+
+          </div>
+
+
+          <div
+            style={{
+              marginTop:8,
+              fontSize:10,
+              color:"#667085",
+              lineHeight:1.4
+            }}
+          >
+
+            Kliknutím na polygon otevřeš detail.
+
+            <br/>
+
+            Při přiblížení se hranice automaticky
+            přepnou:
+
+            <br/>
+
+            kraje → okresy → obce → katastry.
+
+          </div>
+
         </div>
 
-    </aside>
+      </aside>
 
 
-    <!-- ========================= -->
-    <!-- LOCATION PANEL -->
-    <!-- ========================= -->
+      <button
 
-    <aside
-        id="locationPanel"
-        class="location-panel"
-    >
+        className="fixed-open"
 
-        <div class="location-header">
+        onClick={()=>{
 
-            <div>
+          setPanelOpen(
+            true
+          );
 
-                <div class="eyebrow">
-                    LOKALITA
+          setOverview(
+            !selected
+          );
+
+        }}
+
+      >
+
+        {
+          selected
+            ? "Otevřít přehled lokality"
+            : "Seznam zón ČR"
+        }
+
+      </button>
+
+
+      {
+        panelOpen &&
+        (
+
+          <aside className="detail">
+
+            <div className="detail-head">
+
+              <div>
+
+                <div className="eyebrow">
+
+                  {
+                    overview
+                      ? "PŘEHLED ČR"
+                      : (
+                        selected?.level ||
+                        "LOKALITA"
+                      )
+                  }
+
                 </div>
 
-                <h1 id="locationName">
-                    Dejvice
-                </h1>
 
-                <p id="locationCity">
-                    Praha
-                </p>
+                <h2>
+
+                  {
+                    overview
+                      ? "Mapa bydlení ČR"
+                      : (
+                        selected?.name ||
+                        "Vyber zónu"
+                      )
+                  }
+
+                </h2>
+
+              </div>
+
+
+              <button
+
+                className="close"
+
+                onClick={()=>
+                  setPanelOpen(false)
+                }
+
+                aria-label="Zavřít"
+
+              >
+                ×
+              </button>
 
             </div>
 
-            <button
-                id="closePanel"
-                class="close-button"
-            >
-                <i class="fa-solid fa-xmark"></i>
-            </button>
 
-        </div>
+            {
+              overview
+                ?
 
+                (
 
-        <div class="location-content">
+                  <>
 
-            <!-- DEMO -->
+                    <div className="hero-metric">
 
-            <div class="demo-warning">
+                      <span>
+                        Mapový systém
+                      </span>
 
-                <i class="fa-solid fa-database"></i>
+                      <strong>
+                        Celá ČR
+                      </strong>
 
-                <div>
-
-                    <strong>DEMO DATA</strong>
-
-                    <p>
-                        Tato lokalita používá demonstrační
-                        hodnoty. Nejedná se o skutečnou
-                        statistickou analýzu.
-                    </p>
-
-                </div>
-
-            </div>
-
-
-            <!-- SCORES -->
-
-            <section>
-
-                <div class="section-title">
-                    PŘEHLED
-                </div>
-
-
-                <div class="scores-grid">
-
-                    <div class="score-card">
-
-                        <div class="score-top">
-                            <i class="fa-solid fa-bus"></i>
-                            <span>Doprava</span>
-                        </div>
-
-                        <div class="score">
-                            <strong id="transportScore">9</strong>
-                            <span>/10</span>
-                        </div>
+                      <small>
+                        kraje · okresy · obce ·
+                        katastrální území
+                      </small>
 
                     </div>
 
 
-                    <div class="score-card">
+                    <div className="overview-list">
 
-                        <div class="score-top">
-                            <i class="fa-solid fa-store"></i>
-                            <span>Služby</span>
-                        </div>
+                      <div className="overview-item">
 
-                        <div class="score">
-                            <strong id="servicesScore">9</strong>
-                            <span>/10</span>
-                        </div>
+                        <span>
+                          Aktivní vrstva
+                        </span>
+
+                        <strong>
+                          {activeMeta.label}
+                        </strong>
+
+                      </div>
+
+
+                      <div className="overview-item">
+
+                        <span>
+                          Úroveň podle zoomu
+                        </span>
+
+                        <strong>
+                          {
+                            hierarchyForZoom(
+                              zoom
+                            ).name
+                          }
+                        </strong>
+
+                      </div>
+
+
+                      <div className="overview-item">
+
+                        <span>
+                          Body zájmu
+                        </span>
+
+                        <strong>
+
+                          {
+                            enabled.schools
+                              ? "Školy zapnuty"
+                              : "vypnuty"
+                          }
+
+                        </strong>
+
+                      </div>
+
+
+                      <div className="overview-item">
+
+                        <span>
+                          Zdroj hranic
+                        </span>
+
+                        <strong>
+                          ČÚZK / RÚIAN
+                        </strong>
+
+                      </div>
 
                     </div>
 
 
-                    <div class="score-card">
+                    <div className="data-warning">
 
-                        <div class="score-top">
-                            <i class="fa-solid fa-tree"></i>
-                            <span>Zeleň</span>
-                        </div>
+                      Hranice území jsou živá data
+                      RÚIAN.
 
-                        <div class="score">
-                            <strong id="greeneryScore">8</strong>
-                            <span>/10</span>
-                        </div>
+                      <br/><br/>
 
-                    </div>
-
-
-                    <div class="score-card">
-
-                        <div class="score-top">
-                            <i class="fa-solid fa-volume-low"></i>
-                            <span>Klid</span>
-                        </div>
-
-                        <div class="score">
-                            <strong id="quietnessScore">6</strong>
-                            <span>/10</span>
-                        </div>
+                      Celostátní hodnoty zeleně,
+                      hluku a bezpečnosti jsou v této
+                      verzi označené jako DEMO.
 
                     </div>
 
 
-                    <div class="score-card">
+                    <div className="detail-section">
 
-                        <div class="score-top">
-                            <i class="fa-solid fa-square-parking"></i>
-                            <span>Parkování</span>
-                        </div>
+                      <h3>
+                        Připravené datové vrstvy
+                      </h3>
 
-                        <div class="score">
-                            <strong id="parkingScore">5</strong>
-                            <span>/10</span>
-                        </div>
+                      <p>
+
+                        Ceny, nájmy, zeleň, hluk
+                        a bezpečnost používají stejný
+                        polygonový systém.
+
+                      </p>
 
                     </div>
 
-                </div>
+                  </>
 
-            </section>
+                )
 
+                :
 
-            <!-- ADVANTAGES -->
+                selected
 
-            <section>
+                ?
 
-                <div class="section-title">
-                    VÝHODY
-                </div>
+                (
 
-                <div id="advantages"></div>
+                  <>
 
-            </section>
+                    {
+                      selected.metric?.value != null &&
+                      (
 
+                        <div className="hero-metric">
 
-            <!-- RISKS -->
+                          <span>
 
-            <section>
+                            {
+                              selected.activeLayer==="price"
 
-                <div class="section-title">
-                    RIZIKA
-                </div>
+                                ? "Průměrná nabídková cena bytu"
 
-                <div id="risks"></div>
+                                : selected.activeLayer==="rent"
 
-            </section>
+                                ? "Nájem za 1 m² / měsíc"
 
+                                : (
+                                  LAYERS[
+                                    selected.activeLayer
+                                  ]?.label ||
+                                  "Hodnota"
+                                )
+                            }
 
-            <!-- DATA -->
-
-            <section class="data-section">
-
-                <div class="section-title">
-                    DATA
-                </div>
-
-                <div class="data-row">
-
-                    <span>Zdroj</span>
-
-                    <strong>
-                        DEMO DATA
-                    </strong>
-
-                </div>
-
-                <div class="data-row">
-
-                    <span>Aktualizováno</span>
-
-                    <strong>
-                        DEMO
-                    </strong>
-
-                </div>
-
-                <div class="data-row">
-
-                    <span>Metodika</span>
-
-                    <strong>
-                        DEMO
-                    </strong>
-
-                </div>
-
-            </section>
-
-        </div>
-
-    </aside>
+                          </span>
 
 
-    <!-- ========================= -->
-    <!-- MOBILE LAYERS BUTTON -->
-    <!-- ========================= -->
+                          <strong>
 
-    <button
-        id="mobileLayers"
-        class="mobile-layers"
-    >
-        <i class="fa-solid fa-layer-group"></i>
-    </button>
+                            {
+                              selected.activeLayer==="price"
 
-</div>
+                                ? fmt(
+                                    selected.metric.value,
+                                    " Kč/m²"
+                                  )
+
+                                : selected.activeLayer==="rent"
+
+                                ? fmt(
+                                    selected.metric.value,
+                                    " Kč/m²/měsíc"
+                                  )
+
+                                : Math.round(
+                                    selected.metric.value
+                                  )
+                            }
+
+                          </strong>
 
 
-<!-- MapLibre -->
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+                          <small>
+                            {selected.metric.label}
+                          </small>
 
-<!-- JavaScript -->
-<script src="script.js"></script>
+                        </div>
+
+                      )
+                    }
+
+
+                    {
+                      selected.metric?.real===false &&
+                      selected.activeLayer!=="schools" &&
+                      (
+
+                        <div className="data-warning">
+
+                          <strong>
+                            DEMO DATA.
+                          </strong>
+
+                          {" "}
+
+                          Tato hodnota je pouze
+                          analytická ukázka pro
+                          vykreslení polygonové mapy.
+
+                          <br/><br/>
+
+                          Není to tvrzení o skutečné
+                          hodnotě daného území.
+
+                        </div>
+
+                      )
+                    }
+
+
+                    {
+                      selected.activeLayer==="schools" &&
+                      (
+
+                        <div className="hero-metric">
+
+                          <span>
+                            Typ bodu
+                          </span>
+
+                          <strong>
+                            POI
+                          </strong>
+
+                          <small>
+                            Školské zařízení
+                            z OpenStreetMap
+                          </small>
+
+                        </div>
+
+                      )
+                    }
+
+
+                    {
+                      selected.activeLayer!=="schools" &&
+                      (
+
+                        <div className="score-grid">
+
+                          <div className="score">
+
+                            <span>
+                              Zeleň
+                            </span>
+
+                            <strong>
+
+                              {
+                                Math.round(
+                                  getMetric(
+                                    selected.feature ||
+                                      {
+                                        properties:
+                                          selected.properties
+                                      },
+                                    "green"
+                                  ).value
+                                )
+                              }
+                              %
+
+                            </strong>
+
+                          </div>
+
+
+                          <div className="score">
+
+                            <span>
+                              Hluk
+                            </span>
+
+                            <strong>
+
+                              {
+                                Math.round(
+                                  getMetric(
+                                    selected.feature ||
+                                      {
+                                        properties:
+                                          selected.properties
+                                      },
+                                    "noise"
+                                  ).value
+                                )
+                              }
+
+                              /100
+
+                            </strong>
+
+                          </div>
+
+
+                          <div className="score">
+
+                            <span>
+                              Bezpečnost
+                            </span>
+
+                            <strong>
+
+                              {
+                                Math.round(
+                                  getMetric(
+                                    selected.feature ||
+                                      {
+                                        properties:
+                                          selected.properties
+                                      },
+                                    "safety"
+                                  ).value
+                                )
+                              }
+
+                              /100
+
+                            </strong>
+
+                          </div>
+
+
+                          <div className="score">
+
+                            <span>
+                              Úroveň mapy
+                            </span>
+
+                            <strong>
+                              {selected.level}
+                            </strong>
+
+                          </div>
+
+                        </div>
+
+                      )
+                    }
+
+
+                    <div className="detail-section">
+
+                      <h3>
+                        Informace
+                      </h3>
+
+                      <ul>
+
+                        <li>
+                          Detailní polygonová zóna
+                          bez bodových náhrad za ceny.
+                        </li>
+
+                        <li>
+                          Hranice vycházejí z dat
+                          RÚIAN.
+                        </li>
+
+                        <li>
+                          Po přiblížení se automaticky
+                          zobrazí jemnější územní jednotky.
+                        </li>
+
+                      </ul>
+
+                    </div>
+
+
+                    <div className="detail-section">
+
+                      <h3>
+                        Poznámky k datům
+                      </h3>
+
+                      <ul>
+
+                        <li>
+                          DEMO indexy nelze použít
+                          jako skutečný cenový,
+                          investiční nebo bezpečnostní
+                          ukazatel.
+                        </li>
+
+                        <li>
+                          Nabídková cena RealityMIX
+                          není totéž co realizovaná
+                          transakční cena.
+                        </li>
+
+                      </ul>
+
+                    </div>
+
+
+                    <div className="source">
+
+                      <strong>
+                        Zdroj hranic:
+                      </strong>
+
+                      {" "}
+                      ČÚZK / RÚIAN.
+
+                      <br/>
+
+                      <strong>
+                        Zdroj cen a nájmů:
+                      </strong>
+
+                      {" "}
+                      RealityMIX 09/2026.
+
+                      <br/>
+
+                      <strong>
+                        POI školy:
+                      </strong>
+
+                      {" "}
+                      OpenStreetMap /
+                      Overpass API.
+
+                      <br/>
+
+                      <strong>
+                        Ostatní celostátní hodnoty:
+                      </strong>
+
+                      {" "}
+                      DEMO.
+
+                    </div>
+
+                  </>
+
+                )
+
+                :
+
+                null
+            }
+
+          </aside>
+
+        )
+      }
+
+    </>
+
+  );
+
+}
+
+
+ReactDOM.createRoot(
+  document.getElementById("root")
+).render(
+  <App />
+);
+
+</script>
 
 </body>
 </html>
